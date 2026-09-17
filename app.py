@@ -1,0 +1,309 @@
+
+import os, shutil, base64
+from pathlib import Path
+import pandas as pd
+import streamlit as st
+from openpyxl import load_workbook
+
+APP_DIR = Path(__file__).parent
+DB_PATH = APP_DIR / "data" / "database.xlsx"
+LOGO_PATH = APP_DIR / "assets" / "logo_al_ghozali.jpg"
+
+st.set_page_config(
+    page_title="Sistem PKG Guru Al-Ghozali",
+    page_icon="📘",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+if "menu" not in st.session_state:
+    st.session_state.menu = "Dashboard"
+
+def logo_data_uri():
+    if not LOGO_PATH.exists():
+        return ""
+    encoded = base64.b64encode(LOGO_PATH.read_bytes()).decode()
+    return f"data:image/jpeg;base64,{encoded}"
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+:root {
+    --navy:#062b55;
+    --blue:#0b67b2;
+    --blue2:#208fe5;
+    --gold:#d5a52c;
+    --gold2:#f0c95c;
+    --cream:#fffaf0;
+    --ink:#17304f;
+}
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+.stApp { background: linear-gradient(135deg,#f7fbff 0%,#fffdf7 55%,#f1f7ff 100%); }
+[data-testid="stHeader"] { background: transparent; }
+.block-container { padding-top: 1.2rem; max-width: 1450px; }
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg,#062b55 0%,#084477 55%,#052a50 100%);
+    border-right: 1px solid rgba(255,255,255,.12);
+}
+[data-testid="stSidebar"] * { color: #fff !important; }
+[data-testid="stSidebar"] .stButton > button {
+    border-radius: 999px !important;
+    border: 1px solid rgba(255,255,255,.16) !important;
+    background: rgba(255,255,255,.08) !important;
+    color: white !important;
+    text-align: left !important;
+    margin: 3px 0 !important;
+    transition: .2s ease;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: linear-gradient(90deg,var(--gold),#e6bc48) !important;
+    color: #09284b !important;
+    transform: translateX(3px);
+}
+.brand { text-align:center; padding: 8px 8px 20px; }
+.brand img { width: 112px; height:112px; object-fit:contain; border-radius:50%; background:white; padding:6px; box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.brand h2 { font-family:'Plus Jakarta Sans'; font-size:19px; margin:10px 0 2px; color:#f3cc63; }
+.brand p { font-size:11px; color:#dbeaff !important; margin:0; }
+.gold-line { height:3px; width:80px; background:linear-gradient(90deg,transparent,#f0c95c,transparent); margin:14px auto; }
+.hero {
+    background: linear-gradient(110deg,#062b55 0%,#0a4c83 62%,#d5a52c 160%);
+    border-radius: 26px; padding: 28px 32px; color:white;
+    box-shadow:0 15px 38px rgba(6,43,85,.18); position:relative; overflow:hidden;
+}
+.hero:after { content:""; position:absolute; right:-80px; top:-100px; width:310px; height:310px; border:2px solid rgba(255,255,255,.12); border-radius:50%; box-shadow:0 0 0 25px rgba(255,255,255,.05),0 0 0 55px rgba(255,255,255,.035); }
+.hero h1 { font-family:'Plus Jakarta Sans'; font-size:31px; margin:0 0 8px; }
+.hero p { margin:0; opacity:.9; }
+.section-title { color:var(--navy); font-family:'Plus Jakarta Sans'; font-size:21px; font-weight:800; margin:24px 0 12px; }
+.kpi {
+    background:white; border:1px solid #e6edf5; border-radius:22px; padding:18px;
+    box-shadow:0 8px 25px rgba(8,52,93,.07); min-height:120px;
+}
+.kpi .label { font-size:12px; color:#6d7f92; font-weight:700; }
+.kpi .value { font-size:30px; font-weight:800; color:var(--navy); margin-top:8px; }
+.kpi.gold { border-top:5px solid var(--gold); }
+.kpi.blue { border-top:5px solid var(--blue2); }
+.kpi small { color:#75889d; }
+.card {
+    background:white; border:1px solid #e6edf5; border-radius:22px; padding:20px;
+    box-shadow:0 8px 25px rgba(8,52,93,.06);
+}
+div[data-testid="stMetric"] { background:transparent; }
+.stButton > button {
+    border-radius:999px; font-weight:700; border:1px solid #d8e3ee;
+}
+div[data-testid="stForm"] { background:#fff; border:1px solid #e6edf5; border-radius:20px; padding:18px; }
+.stDownloadButton > button { border-radius:999px; background:var(--navy); color:white; }
+[data-testid="stDataFrame"] { border-radius:16px; overflow:hidden; }
+</style>
+""", unsafe_allow_html=True)
+
+def sheets():
+    return pd.ExcelFile(DB_PATH).sheet_names
+
+def raw_sheet(name):
+    return pd.read_excel(DB_PATH, sheet_name=name, header=None)
+
+def table_sheet(name):
+    raw = raw_sheet(name)
+    header_idx = 0
+    for i in range(min(15, len(raw))):
+        if raw.iloc[i].notna().sum() >= 2:
+            header_idx = i
+            break
+    df = pd.read_excel(DB_PATH, sheet_name=name, header=header_idx)
+    return df.dropna(how="all").reset_index(drop=True)
+
+def save_sheet(name, df):
+    xls = pd.ExcelFile(DB_PATH)
+    temp = DB_PATH.parent / "database_temp.xlsx"
+    backup = DB_PATH.parent / "database_backup.xlsx"
+    if temp.exists():
+        temp.unlink()
+    with pd.ExcelWriter(temp, engine="openpyxl") as writer:
+        for s in xls.sheet_names:
+            if s == name:
+                df.to_excel(writer, sheet_name=s, index=False)
+            else:
+                pd.read_excel(DB_PATH, sheet_name=s, header=None).to_excel(
+                    writer, sheet_name=s, index=False, header=False
+                )
+    shutil.copy2(DB_PATH, backup)
+    os.replace(str(temp), str(DB_PATH))
+
+def teacher_names():
+    if "Data Guru" not in sheets():
+        return []
+    df = table_sheet("Data Guru")
+    col = next((c for c in df.columns if "nama guru" in str(c).lower()), None)
+    return sorted(df[col].dropna().astype(str).unique().tolist()) if col else []
+
+def pill_menu(label, icon):
+    return f"{icon}  {label}"
+
+# Sidebar
+with st.sidebar:
+    logo = logo_data_uri()
+    st.markdown(f"""
+    <div class="brand">
+      <img src="{logo}">
+      <h2>SMA ISLAM AL-GHOZALI</h2>
+      <p>Sistem Penilaian Kinerja Guru</p>
+      <div class="gold-line"></div>
+    </div>
+    """, unsafe_allow_html=True)
+    menu = st.radio(
+        "NAVIGASI",
+        ["Dashboard","Data Guru","Penilaian Kompetensi","Prestasi Kerja","Kehadiran","Rekap Nilai","Cetak Rapor","Master Database"],
+        key="menu",
+        format_func=lambda x: {
+            "Dashboard":"⌂  Dashboard",
+            "Data Guru":"♙  Data Guru",
+            "Penilaian Kompetensi":"▣  Penilaian Kompetensi",
+            "Prestasi Kerja":"🏆  Prestasi Kerja",
+            "Kehadiran":"◷  Kehadiran",
+            "Rekap Nilai":"▤  Rekap Nilai",
+            "Cetak Rapor":"▤  Cetak Rapor",
+            "Master Database":"◉  Master Database",
+        }[x]
+    )
+    st.markdown("---")
+    st.caption("DATABASE UTAMA")
+    st.success("Spreadsheet terhubung")
+    st.caption("© SMA Islam Al-Ghozali")
+
+# Tombol navigasi kembali ke dashboard
+if st.session_state.get("menu", "Dashboard") != "Dashboard":
+    nav_col, _ = st.columns([1, 5])
+    with nav_col:
+        if st.button("← Kembali ke Dashboard", key="back_dashboard", use_container_width=True):
+            st.session_state.menu = "Dashboard"
+            st.rerun()
+
+# Header
+st.markdown(f"""
+<div class="hero">
+  <h1>SISTEM PKG GURU</h1>
+  <p>SMA Islam Al-Ghozali · Profesional · Akuntabel · Transparan · Berkelanjutan</p>
+</div>
+""", unsafe_allow_html=True)
+
+if menu == "Dashboard":
+    st.markdown('<div class="section-title">Selamat Datang di Dashboard PKG</div>', unsafe_allow_html=True)
+    dg = table_sheet("Data Guru") if "Data Guru" in sheets() else pd.DataFrame()
+    rk = table_sheet("Rekap Nilai") if "Rekap Nilai" in sheets() else pd.DataFrame()
+    cols = st.columns(4)
+    metrics = [
+        ("Jumlah Guru", len(dg), "gold", "Data master guru"),
+        ("Data Rekap", len(rk), "blue", "Baris rekap penilaian"),
+        ("Sheet Database", len(sheets()), "gold", "Terhubung spreadsheet"),
+        ("Status Sistem", "Aktif", "blue", "Siap digunakan"),
+    ]
+    for col, (label, value, style, sub) in zip(cols, metrics):
+        with col:
+            st.markdown(f'<div class="kpi {style}"><div class="label">{label}</div><div class="value">{value}</div><small>{sub}</small></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Menu Utama</div>', unsafe_allow_html=True)
+    menu_cols = st.columns(4)
+    shortcuts = [("Data Guru","👥"),("Penilaian Kompetensi","▣"),("Prestasi Kerja","🏆"),("Kehadiran","◷"),("Rekap Nilai","▤"),("Cetak Rapor","▤"),("Master Database","◉"),("Pengaturan","⚙")]
+    for i, (name, icon) in enumerate(shortcuts):
+        with menu_cols[i % 4]:
+            st.markdown(f'<div class="card" style="text-align:center;margin-bottom:14px"><div style="font-size:30px">{icon}</div><b style="color:#062b55">{name}</b></div>', unsafe_allow_html=True)
+    left, right = st.columns([1.4,1])
+    with left:
+        st.markdown('<div class="section-title">Ringkasan Data Guru</div>', unsafe_allow_html=True)
+        st.dataframe(dg.head(20), use_container_width=True, hide_index=True)
+    with right:
+        st.markdown('<div class="section-title">Distribusi Unit</div>', unsafe_allow_html=True)
+        if not dg.empty and "Unit" in dg.columns:
+            counts = dg["Unit"].fillna("Tidak Diisi").value_counts()
+            st.bar_chart(counts)
+        else:
+            st.info("Belum ada data unit.")
+
+elif menu == "Data Guru":
+    st.markdown('<div class="section-title">Data Guru</div>', unsafe_allow_html=True)
+    df = table_sheet("Data Guru")
+    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.markdown('<div class="section-title">Tambah Data Guru</div>', unsafe_allow_html=True)
+    with st.form("tambah_guru"):
+        vals = {str(c): st.text_input(str(c)) for c in df.columns}
+        ok = st.form_submit_button("Simpan Data Guru")
+    if ok:
+        save_sheet("Data Guru", pd.concat([df, pd.DataFrame([vals])], ignore_index=True))
+        st.success("Data guru berhasil disimpan ke spreadsheet.")
+
+elif menu in ["Penilaian Kompetensi","Prestasi Kerja","Kehadiran"]:
+    st.markdown(f'<div class="section-title">{menu}</div>', unsafe_allow_html=True)
+    df = table_sheet(menu)
+
+    nama_guru_col = next(
+        (c for c in df.columns if str(c).strip().lower() in ["nama guru", "nama_guru", "guru", "nama"]),
+        None
+    )
+    guru_terpilih = st.selectbox(
+        "Pilih Nama Guru",
+        ["-- Pilih Guru --"] + teacher_names(),
+        key=f"guru_{menu}"
+    )
+
+    if guru_terpilih == "-- Pilih Guru --":
+        st.info("Silakan pilih nama guru terlebih dahulu. Data nilai akan ditampilkan khusus untuk guru yang dipilih.")
+        st.dataframe(df.head(20), use_container_width=True, hide_index=True)
+    else:
+        if nama_guru_col is not None:
+            df_guru = df[
+                df[nama_guru_col].fillna("").astype(str).str.strip().str.casefold()
+                == guru_terpilih.strip().casefold()
+            ].copy()
+        else:
+            df_guru = df.iloc[0:0].copy()
+
+        st.markdown(
+            f'<div class="card"><b>Guru yang sedang dinilai:</b> '
+            f'<span style="color:#d5a52c">{guru_terpilih}</span></div>',
+            unsafe_allow_html=True
+        )
+        st.write("### Data Nilai Guru Terpilih")
+        if df_guru.empty:
+            st.info("Belum ada data penilaian untuk guru ini.")
+        else:
+            st.dataframe(df_guru, use_container_width=True, hide_index=True)
+
+        st.write("### Input Nilai")
+        with st.form(f"input_penilaian_{menu}"):
+            vals = {}
+            for c in df.columns[:12]:
+                if c == nama_guru_col:
+                    st.text_input(str(c), value=guru_terpilih, disabled=True)
+                    vals[str(c)] = guru_terpilih
+                else:
+                    vals[str(c)] = st.text_input(str(c))
+            ok = st.form_submit_button("Simpan Nilai Guru Ini")
+        if ok:
+            if nama_guru_col is not None:
+                vals[str(nama_guru_col)] = guru_terpilih
+            save_sheet(menu, pd.concat([df, pd.DataFrame([vals])], ignore_index=True))
+            st.success(f"Nilai {guru_terpilih} berhasil disimpan ke spreadsheet.")
+            st.rerun()
+
+elif menu == "Rekap Nilai":
+    st.markdown('<div class="section-title">Rekap Nilai Kinerja Guru</div>', unsafe_allow_html=True)
+    df = table_sheet("Rekap Nilai")
+    st.dataframe(df, use_container_width=True, hide_index=True)
+    numeric = df.select_dtypes(include="number")
+    if not numeric.empty:
+        st.markdown('<div class="section-title">Visualisasi Nilai</div>', unsafe_allow_html=True)
+        st.bar_chart(numeric.mean())
+
+elif menu == "Cetak Rapor":
+    st.markdown('<div class="section-title">Cetak Rapor Kinerja Guru</div>', unsafe_allow_html=True)
+    teacher = st.selectbox("Pilih Guru", ["-- Pilih Guru --"] + teacher_names())
+    if teacher != "-- Pilih Guru --":
+        st.success(f"Guru terpilih: {teacher}")
+    st.info("Template rapor tersedia pada sheet Cetak Rapor. Pengisian dan export PDF dapat disempurnakan sesuai posisi sel template.")
+
+elif menu == "Master Database":
+    st.markdown('<div class="section-title">Master Database Spreadsheet</div>', unsafe_allow_html=True)
+    for name in ["MASTER UNIT","MASTER MAPEL","MASTER GURU","MASTER KELAS","PENUGASAN GURU"]:
+        if name in sheets():
+            with st.expander(name, expanded=(name=="MASTER GURU")):
+                st.dataframe(table_sheet(name), use_container_width=True, hide_index=True)
