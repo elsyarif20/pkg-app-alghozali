@@ -153,11 +153,12 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     menu = st.radio(
         "NAVIGASI",
-        ["Dashboard","Data Guru","Penilaian Kompetensi","Prestasi Kerja","Kehadiran","Rekap Nilai","Cetak Rapor","Master Database"],
+        ["Dashboard","Data Guru","Administrasi Guru","Penilaian Kompetensi","Prestasi Kerja","Kehadiran","Rekap Nilai","Cetak Rapor","Master Database"],
         key="menu",
         format_func=lambda x: {
             "Dashboard":"⌂  Dashboard",
             "Data Guru":"♙  Data Guru",
+            "Administrasi Guru":"📁  Administrasi Guru",
             "Penilaian Kompetensi":"▣  Penilaian Kompetensi",
             "Prestasi Kerja":"🏆  Prestasi Kerja",
             "Kehadiran":"◷  Kehadiran",
@@ -203,7 +204,7 @@ if menu == "Dashboard":
             st.markdown(f'<div class="kpi {style}"><div class="label">{label}</div><div class="value">{value}</div><small>{sub}</small></div>', unsafe_allow_html=True)
     st.markdown('<div class="section-title">Menu Utama</div>', unsafe_allow_html=True)
     menu_cols = st.columns(4)
-    shortcuts = [("Data Guru","👥"),("Penilaian Kompetensi","▣"),("Prestasi Kerja","🏆"),("Kehadiran","◷"),("Rekap Nilai","▤"),("Cetak Rapor","▤"),("Master Database","◉"),("Pengaturan","⚙")]
+    shortcuts = [("Data Guru","👥"),("Administrasi Guru","📁"),("Penilaian Kompetensi","▣"),("Prestasi Kerja","🏆"),("Kehadiran","◷"),("Rekap Nilai","▤"),("Cetak Rapor","▤"),("Master Database","◉")]
     for i, (name, icon) in enumerate(shortcuts):
         with menu_cols[i % 4]:
             st.markdown(f'<div class="card" style="text-align:center;margin-bottom:14px"><div style="font-size:30px">{icon}</div><b style="color:#062b55">{name}</b></div>', unsafe_allow_html=True)
@@ -307,3 +308,53 @@ elif menu == "Master Database":
         if name in sheets():
             with st.expander(name, expanded=(name=="MASTER GURU")):
                 st.dataframe(table_sheet(name), use_container_width=True, hide_index=True)
+
+elif menu == "Administrasi Guru":
+    st.markdown('<div class="section-title">Deteksi File Administrasi Guru</div>', unsafe_allow_html=True)
+    st.info("Fitur ini mendeteksi file administrasi pada folder lokal (Komputer/Flashdisk) Anda secara real-time. Jika nama file mengandung nama guru, statusnya akan otomatis berubah menjadi 'Sudah'.")
+    
+    folder_path = st.text_input(
+        "Path Folder Administrasi (Lokal)", 
+        value=st.session_state.get("admin_folder", ""),
+        placeholder="Contoh: D:\\Administrasi_Guru"
+    )
+    
+    if folder_path:
+        st.session_state["admin_folder"] = folder_path
+        if os.path.isdir(folder_path):
+            st.success(f"Folder ditemukan: `{folder_path}`")
+            files = os.listdir(folder_path)
+            teachers = teacher_names()
+            
+            if not teachers:
+                st.warning("Belum ada data guru di sistem.")
+            else:
+                status_data = []
+                for t in teachers:
+                    t_normalized = str(t).lower().replace(" ", "").replace("_", "")
+                    
+                    found_files = []
+                    for f in files:
+                        f_normalized = str(f).lower().replace(" ", "").replace("_", "")
+                        if t_normalized in f_normalized:
+                            found_files.append(f)
+                            
+                    status_data.append({
+                        "Nama Guru": t,
+                        "Status": "✅ Sudah" if found_files else "❌ Belum",
+                        "File Ditemukan": ", ".join(found_files) if found_files else "-"
+                    })
+                
+                df_status = pd.DataFrame(status_data)
+                
+                def highlight_status(val):
+                    color = '#e6ffe6' if '✅' in str(val) else '#ffe6e6'
+                    return f'background-color: {color}'
+                
+                st.dataframe(
+                    df_status.style.map(highlight_status, subset=['Status']),
+                    use_container_width=True,
+                    hide_index=True
+                )
+        else:
+            st.error("Folder tidak ditemukan. Pastikan path yang dimasukkan benar dan aplikasi memiliki izin akses ke folder tersebut.")
