@@ -146,7 +146,7 @@ with st.sidebar:
     st.markdown(f"""
     <div class="brand">
       <img src="{logo}">
-      <h2>SMA ISLAM AL-GHOZALI</h2>
+      <h2>YAYASAN PENDIDIKAN ISLAM PONDOK MODERN AL-GHOZALI</h2>
       <p>Sistem Penilaian Kinerja Guru</p>
       <div class="gold-line"></div>
     </div>
@@ -170,7 +170,7 @@ with st.sidebar:
     st.markdown("---")
     st.caption("DATABASE UTAMA")
     st.success("Spreadsheet terhubung")
-    st.caption("© SMA Islam Al-Ghozali")
+    st.caption("© Yayasan Pendidikan Islam Pondok Modern Al-Ghozali")
 
 # Tombol navigasi kembali ke dashboard
 if st.session_state.get("menu", "Dashboard") != "Dashboard":
@@ -184,7 +184,7 @@ if st.session_state.get("menu", "Dashboard") != "Dashboard":
 st.markdown(f"""
 <div class="hero">
   <h1>SISTEM PKG GURU</h1>
-  <p>SMA Islam Al-Ghozali · Profesional · Akuntabel · Transparan · Berkelanjutan</p>
+  <p>Yayasan Pendidikan Islam Pondok Modern Al-Ghozali · Profesional · Akuntabel · Transparan · Berkelanjutan</p>
 </div>
 """, unsafe_allow_html=True)
 
