@@ -299,8 +299,107 @@ elif menu == "Cetak Rapor":
     st.markdown('<div class="section-title">Cetak Rapor Kinerja Guru</div>', unsafe_allow_html=True)
     teacher = st.selectbox("Pilih Guru", ["-- Pilih Guru --"] + teacher_names())
     if teacher != "-- Pilih Guru --":
-        st.success(f"Guru terpilih: {teacher}")
-    st.info("Template rapor tersedia pada sheet Cetak Rapor. Pengisian dan export PDF dapat disempurnakan sesuai posisi sel template.")
+        df_guru = table_sheet("Data Guru") if "Data Guru" in sheets() else pd.DataFrame()
+        df_rekap = table_sheet("Rekap Nilai") if "Rekap Nilai" in sheets() else pd.DataFrame()
+        
+        nama_col_guru = next((c for c in df_guru.columns if str(c).strip().lower() in ["nama guru", "nama_guru", "guru", "nama"]), None)
+        nama_col_rekap = next((c for c in df_rekap.columns if str(c).strip().lower() in ["nama guru", "nama_guru", "guru", "nama"]), None)
+        
+        guru_info = {}
+        if nama_col_guru is not None and not df_guru.empty:
+            baris = df_guru[df_guru[nama_col_guru].fillna("").astype(str).str.strip().str.casefold() == teacher.strip().casefold()]
+            if not baris.empty:
+                guru_info = baris.iloc[0].to_dict()
+                
+        rekap_info = {}
+        if nama_col_rekap is not None and not df_rekap.empty:
+            baris = df_rekap[df_rekap[nama_col_rekap].fillna("").astype(str).str.strip().str.casefold() == teacher.strip().casefold()]
+            if not baris.empty:
+                rekap_info = baris.iloc[0].to_dict()
+                
+        st.markdown("---")
+        
+        # Inject CSS khusus untuk mode Print (Ctrl+P)
+        st.markdown("""
+        <style>
+        @media print {
+            body * { visibility: hidden; }
+            #rapor-area, #rapor-area * { visibility: visible; }
+            #rapor-area {
+                position: absolute; left: 0; top: 0; width: 100%;
+                box-shadow: none !important; border: none !important;
+            }
+            [data-testid="stSidebar"], [data-testid="stHeader"] { display: none !important; }
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        rapor_html = f"""
+        <div id="rapor-area" style="background:white; padding: 40px; border: 1px solid #e6edf5; border-radius: 12px; margin-bottom: 20px; color: black; font-family: 'Times New Roman', Times, serif; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+            <div style="text-align: center; border-bottom: 3px solid black; padding-bottom: 15px; margin-bottom: 25px;">
+                <h2 style="margin: 0; font-size: 24px; text-transform: uppercase;">YAYASAN PENDIDIKAN ISLAM PONDOK MODERN AL-GHOZALI</h2>
+                <h3 style="margin: 8px 0 0; font-size: 18px;">LAPORAN PENILAIAN KINERJA GURU (PKG)</h3>
+            </div>
+            
+            <table style="width: 100%; margin-bottom: 25px; font-size: 15px; border: none;">
+                <tr><td style="width: 150px; font-weight: bold; border: none; padding: 4px 0;">Nama Guru</td><td style="border: none; padding: 4px 0;">: {teacher}</td></tr>
+                <tr><td style="font-weight: bold; border: none; padding: 4px 0;">ID Guru / NUPTK</td><td style="border: none; padding: 4px 0;">: {guru_info.get('ID Guru', guru_info.get('NUPTK', '-'))}</td></tr>
+                <tr><td style="font-weight: bold; border: none; padding: 4px 0;">Unit Kerja</td><td style="border: none; padding: 4px 0;">: {guru_info.get('Unit', '-')}</td></tr>
+            </table>
+            
+            <h4 style="margin-bottom: 12px; font-size: 16px;">Rincian Hasil Penilaian:</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 15px; text-align: left; margin-bottom: 30px;">
+                <thead>
+                    <tr style="background-color: #f9fafc;">
+                        <th style="border: 1px solid black; padding: 10px;">Kriteria / Indikator Penilaian</th>
+                        <th style="border: 1px solid black; padding: 10px; text-align: center; width: 120px;">Nilai</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        for k, v in rekap_info.items():
+            if str(k).strip().lower() not in ["nama guru", "nama_guru", "guru", "nama", "id guru", "nuptk", "unit"]:
+                if pd.notna(v) and str(v).strip() != "":
+                    val_str = str(v)
+                    if isinstance(v, (int, float)):
+                        val_str = f"{v:.2f}".rstrip('0').rstrip('.') if '.' in f"{v:.2f}" else str(v)
+                    
+                    rapor_html += f"""
+                    <tr>
+                        <td style="border: 1px solid black; padding: 10px;">{k}</td>
+                        <td style="border: 1px solid black; padding: 10px; text-align: center; font-weight: bold;">{val_str}</td>
+                    </tr>
+                    """
+                    
+        rapor_html += f"""
+                </tbody>
+            </table>
+            
+            <div style="margin-top: 50px; width: 100%; display: flex; justify-content: space-between;">
+                <div style="text-align: center; width: 45%;">
+                    <p style="margin: 0;">Mengetahui,</p>
+                    <p style="margin: 0; margin-bottom: 80px;">Kepala Sekolah</p>
+                    <p style="margin: 0; text-decoration: underline; font-weight: bold;">( .................................... )</p>
+                </div>
+                <div style="text-align: center; width: 45%;">
+                    <p style="margin: 0;">Guru yang Dinilai,</p>
+                    <p style="margin: 0; margin-bottom: 80px;"><br></p>
+                    <p style="margin: 0; text-decoration: underline; font-weight: bold;">{teacher}</p>
+                </div>
+            </div>
+        </div>
+        """
+        
+        st.markdown(rapor_html, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("🖨️ Cetak / Simpan PDF", type="primary", use_container_width=True):
+                import streamlit.components.v1 as components
+                components.html("<script>window.parent.print();</script>", height=0, width=0)
+        with col2:
+            st.caption("Jika tombol tidak berfungsi, Anda bisa langsung menekan **Ctrl+P** (Windows) atau **Cmd+P** (Mac) pada keyboard Anda.")
 
 elif menu == "Master Database":
     st.markdown('<div class="section-title">Master Database Spreadsheet</div>', unsafe_allow_html=True)
