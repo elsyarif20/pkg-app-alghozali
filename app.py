@@ -388,24 +388,86 @@ elif menu == "Cetak Rapor":
         </div>
         """
         
-        # Gunakan st.html jika tersedia (Streamlit >= 1.34), atau st.markdown
+        # Tampilkan di layar
         if hasattr(st, 'html'):
             st.html(rapor_html)
         else:
             st.markdown(rapor_html, unsafe_allow_html=True)
+            
+        # Generate PDF menggunakan fpdf2
+        from fpdf import FPDF
         
-        col1, col2 = st.columns([1, 4])
+        class PDFRapor(FPDF):
+            def header(self):
+                self.set_font("helvetica", "B", 13)
+                self.cell(0, 8, "YAYASAN PENDIDIKAN ISLAM PONDOK MODERN AL-GHOZALI", border=0, align="C", new_x="LMARGIN", new_y="NEXT")
+                self.set_font("helvetica", "B", 11)
+                self.cell(0, 8, "LAPORAN PENILAIAN KINERJA GURU (PKG)", border="B", align="C", new_x="LMARGIN", new_y="NEXT")
+                self.ln(5)
+                
+        pdf = PDFRapor()
+        pdf.add_page()
+        pdf.set_font("helvetica", "B", 11)
+        pdf.cell(40, 7, "Nama Guru", border=0)
+        pdf.set_font("helvetica", "", 11)
+        pdf.cell(0, 7, f": {teacher}", border=0, new_x="LMARGIN", new_y="NEXT")
+        
+        pdf.set_font("helvetica", "B", 11)
+        pdf.cell(40, 7, "ID Guru / NUPTK", border=0)
+        pdf.set_font("helvetica", "", 11)
+        id_val = guru_info.get('ID Guru', guru_info.get('NUPTK', '-'))
+        pdf.cell(0, 7, f": {id_val}", border=0, new_x="LMARGIN", new_y="NEXT")
+        
+        pdf.set_font("helvetica", "B", 11)
+        pdf.cell(40, 7, "Unit Kerja", border=0)
+        pdf.set_font("helvetica", "", 11)
+        pdf.cell(0, 7, f": {guru_info.get('Unit', '-')}", border=0, new_x="LMARGIN", new_y="NEXT")
+        
+        pdf.ln(8)
+        pdf.set_font("helvetica", "B", 11)
+        pdf.cell(0, 7, "Rincian Hasil Penilaian:", border=0, new_x="LMARGIN", new_y="NEXT")
+        
+        pdf.set_fill_color(240, 240, 240)
+        pdf.set_font("helvetica", "B", 11)
+        pdf.cell(140, 9, "Kriteria / Indikator Penilaian", border=1, align="L", fill=True)
+        pdf.cell(50, 9, "Nilai", border=1, align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
+        
+        pdf.set_font("helvetica", "", 11)
+        for k, v in rekap_info.items():
+            if str(k).strip().lower() not in ["nama guru", "nama_guru", "guru", "nama", "id guru", "nuptk", "unit"]:
+                if pd.notna(v) and str(v).strip() != "":
+                    val_str = str(v)
+                    if isinstance(v, (int, float)):
+                        val_str = f"{v:.2f}".rstrip('0').rstrip('.') if '.' in f"{v:.2f}" else str(v)
+                    pdf.cell(140, 9, str(k), border=1, align="L")
+                    pdf.set_font("helvetica", "B", 11)
+                    pdf.cell(50, 9, str(val_str), border=1, align="C", new_x="LMARGIN", new_y="NEXT")
+                    pdf.set_font("helvetica", "", 11)
+                    
+        pdf.ln(15)
+        pdf.set_font("helvetica", "", 11)
+        pdf.cell(95, 6, "Mengetahui,", border=0, align="C")
+        pdf.cell(95, 6, "Guru yang Dinilai,", border=0, align="C", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(95, 6, "Kepala Sekolah", border=0, align="C", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(20)
+        pdf.set_font("helvetica", "BU", 11)
+        pdf.cell(95, 6, "( .................................... )", border=0, align="C")
+        pdf.cell(95, 6, teacher, border=0, align="C", new_x="LMARGIN", new_y="NEXT")
+        
+        pdf_bytes = bytes(pdf.output())
+        
+        col1, col2 = st.columns([1.5, 3.5])
         with col1:
             st.download_button(
-                label="⬇️ Download Rapor (HTML)",
-                data=rapor_html,
-                file_name=f"Rapor_PKG_{teacher.replace(' ', '_')}.html",
-                mime="text/html",
+                label="⬇️ Download Rapor (PDF)",
+                data=pdf_bytes,
+                file_name=f"Rapor_PKG_{teacher.replace(' ', '_')}.pdf",
+                mime="application/pdf",
                 type="primary",
                 use_container_width=True
             )
         with col2:
-            st.caption("File akan diunduh dalam format HTML. Anda dapat mengkliknya dua kali untuk membukanya di browser, lalu mencetaknya/simpan ke PDF.")
+            st.caption("Klik tombol di samping untuk langsung mengunduh rapor dalam format PDF murni.")
 
 elif menu == "Master Database":
     st.markdown('<div class="section-title">Master Database Spreadsheet</div>', unsafe_allow_html=True)
