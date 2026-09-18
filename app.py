@@ -396,11 +396,16 @@ elif menu == "Cetak Rapor":
         
         col1, col2 = st.columns([1, 4])
         with col1:
-            if st.button("🖨️ Cetak / Simpan PDF", type="primary", use_container_width=True):
-                import streamlit.components.v1 as components
-                components.html("<script>window.parent.print();</script>", height=0, width=0)
+            st.download_button(
+                label="⬇️ Download Rapor (HTML)",
+                data=rapor_html,
+                file_name=f"Rapor_PKG_{teacher.replace(' ', '_')}.html",
+                mime="text/html",
+                type="primary",
+                use_container_width=True
+            )
         with col2:
-            st.caption("Jika tombol tidak berfungsi, Anda bisa langsung menekan **Ctrl+P** (Windows) atau **Cmd+P** (Mac) pada keyboard Anda.")
+            st.caption("File akan diunduh dalam format HTML. Anda dapat mengkliknya dua kali untuk membukanya di browser, lalu mencetaknya/simpan ke PDF.")
 
 elif menu == "Master Database":
     st.markdown('<div class="section-title">Master Database Spreadsheet</div>', unsafe_allow_html=True)
