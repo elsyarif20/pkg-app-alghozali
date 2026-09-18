@@ -340,13 +340,11 @@ elif menu == "Cetak Rapor":
                 <h2 style="margin: 0; font-size: 24px; text-transform: uppercase;">YAYASAN PENDIDIKAN ISLAM PONDOK MODERN AL-GHOZALI</h2>
                 <h3 style="margin: 8px 0 0; font-size: 18px;">LAPORAN PENILAIAN KINERJA GURU (PKG)</h3>
             </div>
-            
             <table style="width: 100%; margin-bottom: 25px; font-size: 15px; border: none;">
                 <tr><td style="width: 150px; font-weight: bold; border: none; padding: 4px 0;">Nama Guru</td><td style="border: none; padding: 4px 0;">: {teacher}</td></tr>
                 <tr><td style="font-weight: bold; border: none; padding: 4px 0;">ID Guru / NUPTK</td><td style="border: none; padding: 4px 0;">: {guru_info.get('ID Guru', guru_info.get('NUPTK', '-'))}</td></tr>
                 <tr><td style="font-weight: bold; border: none; padding: 4px 0;">Unit Kerja</td><td style="border: none; padding: 4px 0;">: {guru_info.get('Unit', '-')}</td></tr>
             </table>
-            
             <h4 style="margin-bottom: 12px; font-size: 16px;">Rincian Hasil Penilaian:</h4>
             <table style="width: 100%; border-collapse: collapse; font-size: 15px; text-align: left; margin-bottom: 30px;">
                 <thead>
@@ -375,7 +373,6 @@ elif menu == "Cetak Rapor":
         rapor_html += f"""
                 </tbody>
             </table>
-            
             <div style="margin-top: 50px; width: 100%; display: flex; justify-content: space-between;">
                 <div style="text-align: center; width: 45%;">
                     <p style="margin: 0;">Mengetahui,</p>
@@ -391,7 +388,11 @@ elif menu == "Cetak Rapor":
         </div>
         """
         
-        st.markdown(rapor_html, unsafe_allow_html=True)
+        # Gunakan st.html jika tersedia (Streamlit >= 1.34), atau st.markdown
+        if hasattr(st, 'html'):
+            st.html(rapor_html)
+        else:
+            st.markdown(rapor_html, unsafe_allow_html=True)
         
         col1, col2 = st.columns([1, 4])
         with col1:
